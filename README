@@ -1,0 +1,14 @@
+AWS CLI federated (SAML) login tool
+
+based on this https://aws.amazon.com/blogs/security/how-to-implement-federated-api-and-cli-access-using-saml-2-0-and-ad-fs/
+
+Installation:
+
+(If virtualenv is installed)
+$  virtualenv .
+
+$ pip install -r requirements.txt
+
+Usage:
+$ python aws_cli_federation.py --user (optional) --password (optional)
+--region (optional)

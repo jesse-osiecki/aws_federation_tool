@@ -15,15 +15,18 @@ from os.path import expanduser
 from urllib.parse import urlparse, urlunparse 
 from requests_ntlm import HttpNtlmAuth
  
+
+REGIONS = ["us-east-2", "us-east-1", "us-west-1", "us-west-2", "ca-central-1", "ap-south-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "eu-central-1", "eu-west-1", "eu-west-2", "sa-east-1"]
 ##########################################################################
 # Variables 
  
 PARSER = argparse.ArgumentParser()
 PARSER.add_argument('-u', '--username', dest='username')
 PARSER.add_argument('-p', '--password', dest='password')
+PARSER.add_argument('-r', '--region', dest='region')
 # region: The default AWS region that this script will connect 
 # to for all API calls 
-region = 'us-east-2' 
+region = '' 
  
 # output format: The AWS CLI output format that will be configured in the 
 # saml profile (affects subsequent CLI calls) 
@@ -55,6 +58,15 @@ if not ARGS.password:
     print('')
 else:
     password = ARGS.password
+if not ARGS.region:
+    for i,region in enumerate(REGIONS):
+        print("[" , i , "] ", region)
+    print("Region: ", end='')
+    region = REGIONS[int(input())]
+    print(region)
+
+else:
+    region = ARGS.region
 
 # Initiate session handler 
 session = requests.Session() 
@@ -105,7 +117,12 @@ for inputtag in soup.find_all('input'):
 
 # Parse the returned assertion and extract the authorized roles 
 awsroles = [] 
-root = ET.fromstring(base64.b64decode(assertion))
+root = None
+try:
+    root = ET.fromstring(base64.b64decode(assertion))
+except: # TODO put a specific exception here 
+    print("Error Parsing the SAML response. Please check your credentials. If the problem persists, contact your administrator")
+    sys.exit(1)
  
 for saml2attribute in root.iter('{urn:oasis:names:tc:SAML:2.0:assertion}Attribute'): 
     if (saml2attribute.get('Name') == 'https://aws.amazon.com/SAML/Attributes/Role'): 
