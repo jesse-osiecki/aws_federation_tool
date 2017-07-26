@@ -1,10 +1,12 @@
 #!/usr/bin/python 
  
 import sys 
+import re
 import boto.sts 
 import boto.s3 
 import requests 
 import getpass 
+import argparse
 import configparser 
 import base64 
 import xml.etree.ElementTree as ET 
@@ -16,6 +18,9 @@ from requests_ntlm import HttpNtlmAuth
 ##########################################################################
 # Variables 
  
+PARSER = argparse.ArgumentParser()
+PARSER.add_argument('-u', '--username', dest='username')
+PARSER.add_argument('-p', '--password', dest='password')
 # region: The default AWS region that this script will connect 
 # to for all API calls 
 region = 'us-east-2' 
@@ -33,18 +38,23 @@ awsconfigfile = '/.aws/credentials'
 sslverification = True 
  
 # idpentryurl: The initial URL that starts the authentication process. 
-idpentryurl = 'https://fs.swmsp.net/adfs/ls/IdpInitiatedSignOn.aspx' 
-payload ={'loginToRp' : 'urn:amazon:webservices'}
-headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+idpentryurl = 'https://fs.swmsp.net/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices' 
 
+ARGS = PARSER.parse_args()
  
 ##########################################################################
 
 # Get the federated credentials from the user
-print("Username:", end='')
-username = input()
-password = getpass.getpass()
-print('')
+if not ARGS.username:
+    print("Username:", end='')
+    username = input()
+else:
+    username = ARGS.username
+if not ARGS.password:
+    password = getpass.getpass()
+    print('')
+else:
+    password = ARGS.password
 
 # Initiate session handler 
 session = requests.Session() 
@@ -54,26 +64,43 @@ session = requests.Session()
 session.auth = HttpNtlmAuth(username, password, session) 
  
 # Opens the initial AD FS URL and follows all of the HTTP302 redirects 
-response = session.request('GET', idpentryurl, params=payload, headers=headers, verify=sslverification) 
- 
-# Debug the response if needed 
-print (response.text)
+response = session.request('GET', idpentryurl, verify=sslverification) 
 
+#determine the Input fields for the POST request
+soup = BeautifulSoup(response.text, "html.parser") 
+payload = {}
+for inputtag in soup.find_all(re.compile('(INPUT|input)')):
+    name = inputtag.get('name','')
+    value = inputtag.get('value','')
+    if "user" in name.lower():
+        #Make an educated guess that this is correct field for username
+        payload[name] = username
+    elif "email" in name.lower():
+        #Some IdPs also label the username field as 'email'
+        payload[name] = username
+    elif "pass" in name.lower():
+        #Make an educated guess that this is correct field for password
+        payload[name] = password
+    else:
+        #Populate the parameter with existing value (picks up hidden fields in the login form)
+        payload[name] = value
+
+#make post request
+response = session.post(
+    idpentryurl, data=payload, verify=sslverification)
+					 
 # Overwrite and delete the credential variables, just for safety
 username = '##############################################'
 password = '##############################################'
 del username
 del password
 
-# Decode the response and extract the SAML assertion 
-soup = BeautifulSoup(response.text, "html.parser") 
-assertion = '' 
- 
 # Look for the SAMLResponse attribute of the input tag (determined by 
 # analyzing the debug print lines above) 
+assertion = '' 
+soup = BeautifulSoup(response.text, "html.parser") 
 for inputtag in soup.find_all('input'): 
     if(inputtag.get('name') == 'SAMLResponse'): 
-        print(inputtag.get('value')) 
         assertion = inputtag.get('value')
 
 # Parse the returned assertion and extract the authorized roles 
@@ -97,29 +124,27 @@ for awsrole in awsroles:
         awsroles.remove(awsrole)
 
 # If I have more than one role, ask the user which one they want, 
-# otherwise just proceed 
 print("")
-if len(awsroles) > 1: 
-    i = 0 
-    print("Please choose the role you would like to assume:")
-    for awsrole in awsroles: 
-        print('[', i, ']: ', awsrole.split(',')[0])
-        i += 1 
+i = 0 
+humannames = []
+print("Please choose the role you would like to assume:")
+for awsrole in awsroles: 
+    humanname = awsrole.split(',')[0].split('/')[1]
+    print('[', i, ']: ', awsrole.split(',')[0], " (", humanname, ")")
+    humannames.append(humanname)
+    i += 1 
 
-    print("Selection: ") 
-    selectedroleindex = input() 
- 
-    # Basic sanity check of input 
-    if int(selectedroleindex) > (len(awsroles) - 1): 
-        print('You selected an invalid role index, please try again')
-        sys.exit(0) 
- 
-    role_arn = awsroles[int(selectedroleindex)].split(',')[0] 
-    principal_arn = awsroles[int(selectedroleindex)].split(',')[1]
- 
-else: 
-    role_arn = awsroles[0].split(',')[0] 
-    principal_arn = awsroles[0].split(',')[1]
+print("Selection: ", end="") 
+selectedroleindex = input() 
+
+# Basic sanity check of input 
+if int(selectedroleindex) > (len(awsroles) - 1): 
+    print('You selected an invalid role index, please try again')
+    sys.exit(0) 
+
+role_arn = awsroles[int(selectedroleindex)].split(',')[0] 
+principal_arn = awsroles[int(selectedroleindex)].split(',')[1]
+configname = humannames[int(selectedroleindex)]
 
 # Use the assertion to get an AWS STS token using Assume Role with SAML
 conn = boto.sts.connect_to_region(region)
@@ -135,14 +160,14 @@ config.read(filename)
  
 # Put the credentials into a specific profile instead of clobbering
 # the default credentials
-if not config.has_section('saml'):
-    config.add_section('saml')
+if not config.has_section(configname):
+    config.add_section(configname)
  
-config.set('saml', 'output', outputformat)
-config.set('saml', 'region', region)
-config.set('saml', 'aws_access_key_id', token.credentials.access_key)
-config.set('saml', 'aws_secret_access_key', token.credentials.secret_key)
-config.set('saml', 'aws_session_token', token.credentials.session_token)
+config.set(configname, 'output', outputformat)
+config.set(configname, 'region', region)
+config.set(configname, 'aws_access_key_id', token.credentials.access_key)
+config.set(configname, 'aws_secret_access_key', token.credentials.secret_key)
+config.set(configname, 'aws_session_token', token.credentials.session_token)
  
 # Write the updated config file
 with open(filename, 'w+') as configfile:
@@ -150,19 +175,8 @@ with open(filename, 'w+') as configfile:
 
 # Give the user some basic info as to what has just happened
 print('\n\n----------------------------------------------------------------')
-print( 'Your new access key pair has been stored in the AWS configuration file {0} under the saml profile.'.format(filename))
+print( 'Your new access key pair has been stored in the AWS configuration file {0} under the {1} profile.'.format(filename, configname))
 print( 'Note that it will expire at {0}.'.format(token.credentials.expiration))
 print( 'After this time you may safely rerun this script to refresh your access key pair.')
 print( 'To use this credential call the AWS CLI with the --profile option (e.g. aws --profile saml ec2 describe-instances).')
 print( '----------------------------------------------------------------\n\n')
-
-# Use the AWS STS token to list all of the S3 buckets
-s3conn = boto.s3.connect_to_region(region,
-                     aws_access_key_id=token.credentials.access_key,
-                     aws_secret_access_key=token.credentials.secret_key,
-                     security_token=token.credentials.session_token)
- 
-buckets = s3conn.get_all_buckets()
- 
-print('Simple API example listing all s3 buckets:')
-print(buckets)
