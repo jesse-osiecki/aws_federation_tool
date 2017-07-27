@@ -21,11 +21,11 @@ REGIONS = ["us-east-2", "us-east-1", "us-west-1", "us-west-2", "ca-central-1", "
 # Variables 
  
 PARSER = argparse.ArgumentParser()
-PARSER.add_argument('-u', '--username', dest='username')
-PARSER.add_argument('-p', '--password', dest='password')
-PARSER.add_argument('-r', '--region', dest='region')
-PARSER.add_argument('-e', '--export', dest='export', const=True, nargs="?")
-PARSER.add_argument('-a', '--account', dest='account')
+PARSER.add_argument('-u', '--username', dest='username', help='Your email')
+PARSER.add_argument('-p', '--password', dest='password', help='Your password')
+PARSER.add_argument('-r', '--region', dest='region', help='the region string e.g us-west-2')
+PARSER.add_argument('-e', '--export', dest='export', const=True, nargs="?", help='Boolean flag, will print export statements to stdout')
+PARSER.add_argument('-a', '--account', dest='account', help='Human readable name that for the role you want to assume. It may help to run this script and see what options are available before using the flag')
 # region: The default AWS region that this script will connect 
 # to for all API calls 
 region = '' 
