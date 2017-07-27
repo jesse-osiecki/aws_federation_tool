@@ -1,22 +1,22 @@
-#!/usr/bin/python 
- 
-import sys 
+#!/usr/bin/python
+import sys
 import re
-import boto.sts 
-import boto.s3 
-import requests 
-import getpass 
+import boto.sts
+import boto.s3
+import requests
+import getpass
 import argparse
-import configparser 
-import base64 
-import xml.etree.ElementTree as ET 
-from bs4 import BeautifulSoup 
-from os.path import expanduser 
-from urllib.parse import urlparse, urlunparse 
+import configparser
+import base64
+import xml.etree.ElementTree as ET
+from bs4 import BeautifulSoup
+from os.path import expanduser
 from requests_ntlm import HttpNtlmAuth
- 
 
-REGIONS = ["us-east-2", "us-east-1", "us-west-1", "us-west-2", "ca-central-1", "ap-south-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "eu-central-1", "eu-west-1", "eu-west-2", "sa-east-1"]
+
+REGIONS = ["us-east-2", "us-east-1", "us-west-1", "us-west-2", "ca-central-1", "ap-south-1",
+           "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1",
+           "eu-central-1", "eu-west-1", "eu-west-2", "sa-east-1"]
 ##########################################################################
 # Variables 
  
@@ -24,47 +24,50 @@ PARSER = argparse.ArgumentParser()
 PARSER.add_argument('-u', '--username', dest='username')
 PARSER.add_argument('-p', '--password', dest='password')
 PARSER.add_argument('-r', '--region', dest='region')
+PARSER.add_argument('-e', '--export', dest='export', const=True, nargs="?")
+PARSER.add_argument('-a', '--account', dest='account')
 # region: The default AWS region that this script will connect 
 # to for all API calls 
 region = '' 
- 
-# output format: The AWS CLI output format that will be configured in the 
-# saml profile (affects subsequent CLI calls) 
+
+# output format: The AWS CLI output format that will be configured in the
+# saml profile (affects subsequent CLI calls)
 outputformat = 'json'
- 
-# awsconfigfile: The file where this script will store the temp 
-# credentials under the saml profile 
+
+# awsconfigfile: The file where this script will store the temp
+# credentials under the saml profile
 awsconfigfile = '/.aws/credentials'
- 
-# SSL certificate verification: Whether or not strict certificate 
-# verification is done, False should only be used for dev/test 
-sslverification = True 
- 
-# idpentryurl: The initial URL that starts the authentication process. 
-idpentryurl = 'https://fs.swmsp.net/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices' 
+
+# SSL certificate verification: Whether or not strict certificate
+# verification is done, False should only be used for dev/test
+sslverification = True
+
+# idpentryurl: The initial URL that starts the authentication process.
+idpentryurl = 'https://fs.swmsp.net/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices'
 
 ARGS = PARSER.parse_args()
- 
+
 ##########################################################################
 
 # Get the federated credentials from the user
 if not ARGS.username:
-    print("Username:", end='')
+    print("Username: ", end='')
     username = input()
 else:
     username = ARGS.username
+
 if not ARGS.password:
     password = getpass.getpass()
     print('')
 else:
     password = ARGS.password
+
 if not ARGS.region:
     for i,region in enumerate(REGIONS):
         print("[" , i , "] ", region)
     print("Region: ", end='')
     region = REGIONS[int(input())]
     print(region)
-
 else:
     region = ARGS.region
 
@@ -167,33 +170,36 @@ configname = humannames[int(selectedroleindex)]
 conn = boto.sts.connect_to_region(region)
 token = conn.assume_role_with_saml(role_arn, principal_arn, assertion)
 
-# Write the AWS STS token into the AWS credential file
-home = expanduser("~")
-filename = home + awsconfigfile
- 
-# Read in the existing config file
-config = configparser.RawConfigParser()
-config.read(filename)
- 
-# Put the credentials into a specific profile instead of clobbering
-# the default credentials
-if not config.has_section(configname):
-    config.add_section(configname)
- 
-config.set(configname, 'output', outputformat)
-config.set(configname, 'region', region)
-config.set(configname, 'aws_access_key_id', token.credentials.access_key)
-config.set(configname, 'aws_secret_access_key', token.credentials.secret_key)
-config.set(configname, 'aws_session_token', token.credentials.session_token)
- 
-# Write the updated config file
-with open(filename, 'w+') as configfile:
-    config.write(configfile)
+if not ARGS.export:
+    # Write the AWS STS token into the AWS credential file
+    home = expanduser("~")
+    filename = home + awsconfigfile
+     
+    # Read in the existing config file
+    config = configparser.RawConfigParser()
+    config.read(filename)
+     
+    # Put the credentials into a specific profile instead of clobbering
+    # the default credentials
+    if not config.has_section(configname):
+        config.add_section(configname)
+     
+    config.set(configname, 'output', outputformat)
+    config.set(configname, 'region', region)
+    config.set(configname, 'aws_access_key_id', token.credentials.access_key)
+    config.set(configname, 'aws_secret_access_key', token.credentials.secret_key)
+    config.set(configname, 'aws_session_token', token.credentials.session_token)
+     
+    # Write the updated config file
+    with open(filename, 'w+') as configfile:
+        config.write(configfile)
 
-# Give the user some basic info as to what has just happened
-print('\n\n----------------------------------------------------------------')
-print( 'Your new access key pair has been stored in the AWS configuration file {0} under the {1} profile.'.format(filename, configname))
-print( 'Note that it will expire at {0}.'.format(token.credentials.expiration))
-print( 'After this time you may safely rerun this script to refresh your access key pair.')
-print( 'To use this credential call the AWS CLI with the --profile option (e.g. aws --profile saml ec2 describe-instances).')
-print( '----------------------------------------------------------------\n\n')
+    # Give the user some basic info as to what has just happened
+    print('\n\n----------------------------------------------------------------')
+    print( 'Your new access key pair has been stored in the AWS configuration file {0} under the {1} profile.'.format(filename, configname))
+    print( 'Note that it will expire at {0}.'.format(token.credentials.expiration))
+    print( 'After this time you may safely rerun this script to refresh your access key pair.')
+    print( 'To use this credential call the AWS CLI with the --profile option (e.g. aws --profile saml ec2 describe-instances).')
+    print( '----------------------------------------------------------------\n\n')
+else:
+    print( 'export AWS_ACCESS_KEY_ID="{0}"\nexport AWS_SECRET_ACCESS_KEY="{1}"\nexport AWS_SESSION_TOKEN="{2}"'.format(token.credentials.access_key, token.credentials.secret_key, token.credentials.session_token))
