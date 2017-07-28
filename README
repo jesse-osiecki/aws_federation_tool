@@ -12,3 +12,7 @@ $ pip install -r requirements.txt
 Usage:
 $ python aws_cli_federation.py --user (optional) --password (optional)
 --region (optional)
+
+
+Bash Completion:
+Using the CLI can be frustrating, complete yourself http://docs.aws.amazon.com/cli/latest/userguide/cli-command-completion.html
