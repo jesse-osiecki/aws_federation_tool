@@ -199,7 +199,7 @@ if not ARGS.export:
     print( 'Your new access key pair has been stored in the AWS configuration file {0} under the {1} profile.'.format(filename, configname))
     print( 'Note that it will expire at {0}.'.format(token.credentials.expiration))
     print( 'After this time you may safely rerun this script to refresh your access key pair.')
-    print( 'To use this credential call the AWS CLI with the --profile option (e.g. aws --profile saml ec2 describe-instances).')
+    print( 'To use this credential call the AWS CLI with the --profile option (e.g. aws --profile {0} ec2 describe-instances).'.format(configname))
     print( '----------------------------------------------------------------\n\n')
 else:
     print( 'export AWS_ACCESS_KEY_ID="{0}"\nexport AWS_SECRET_ACCESS_KEY="{1}"\nexport AWS_SESSION_TOKEN="{2}"'.format(token.credentials.access_key, token.credentials.secret_key, token.credentials.session_token))
