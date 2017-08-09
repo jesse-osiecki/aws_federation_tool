@@ -26,6 +26,7 @@ PARSER.add_argument('-p', '--password', dest='password', help='Your password')
 PARSER.add_argument('-r', '--region', dest='region', help='the region string e.g us-west-2')
 PARSER.add_argument('-e', '--export', dest='export', const=True, nargs="?", help='Boolean flag, will print export statements to stdout')
 PARSER.add_argument('-a', '--account', dest='account', help='Human readable name that for the role you want to assume. It may help to run this script and see what options are available before using the flag')
+PARSER.add_argument('-t', '--profile', dest='profilename', help='Name of the profile you would like to store the credentails in. Default is the Human readable name of the account in the federated services')
 # region: The default AWS region that this script will connect 
 # to for all API calls 
 region = '' 
@@ -164,7 +165,10 @@ if int(selectedroleindex) > (len(awsroles) - 1):
 
 role_arn = awsroles[int(selectedroleindex)].split(',')[0] 
 principal_arn = awsroles[int(selectedroleindex)].split(',')[1]
-configname = humannames[int(selectedroleindex)]
+if ARGS.profilename:
+    configname = ARGS.profilename
+else:
+    configname = humannames[int(selectedroleindex)]
 
 # Use the assertion to get an AWS STS token using Assume Role with SAML
 conn = boto.sts.connect_to_region(region)
