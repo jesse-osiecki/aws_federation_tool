@@ -13,4 +13,4 @@ get_script_dir () {
 }
 
 source $(get_script_dir)/bin/activate
-python $(get_script_dir)/aws_cli_federation.py $@
+python3 $(get_script_dir)/aws_cli_federation.py $@
