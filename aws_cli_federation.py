@@ -144,24 +144,39 @@ for awsrole in awsroles:
         awsroles.insert(index, newawsrole) 
         awsroles.remove(awsrole)
 
-# If I have more than one role, ask the user which one they want, 
-print("")
-i = 0 
+
 humannames = []
-print("Please choose the role you would like to assume:")
-for awsrole in awsroles: 
-    humanname = awsrole.split(',')[0].split('/')[1]
-    print('[', i, ']: ', awsrole.split(',')[0], " (", humanname, ")")
-    humannames.append(humanname)
-    i += 1 
+i = 0 
+selectedroleindex = None
+if not ARGS.account:
+    # If I have more than one role, ask the user which one they want, 
+    print("")
+    print("Please choose the role you would like to assume:")
+    for awsrole in awsroles: 
+        humanname = awsrole.split(',')[0].split('/')[1].strip()
+        print('[', i, ']: ', awsrole.split(',')[0], " (", humanname, ")")
+        humannames.append(humanname)
+        i += 1 
 
-print("Selection: ", end="") 
-selectedroleindex = input() 
+    print("Selection: ", end="") 
+    selectedroleindex = input() 
 
-# Basic sanity check of input 
-if int(selectedroleindex) > (len(awsroles) - 1): 
-    print('You selected an invalid role index, please try again')
-    sys.exit(0) 
+    # Basic sanity check of input 
+    if int(selectedroleindex) > (len(awsroles) - 1): 
+        print('You selected an invalid role index, please try again')
+        sys.exit(0) 
+else:
+    for awsrole in awsroles: 
+        humanname = awsrole.split(',')[0].split('/')[1].strip()
+        humannames.append(humanname)
+        if str(ARGS.account) == str(humanname):
+            selectedroleindex = i
+            break
+        i += 1 
+    # if we get here the cli input was probabaly wrong
+    if selectedroleindex is None:
+        print('Youve entered an invalid role')
+        sys.exit(0)
 
 role_arn = awsroles[int(selectedroleindex)].split(',')[0] 
 principal_arn = awsroles[int(selectedroleindex)].split(',')[1]
