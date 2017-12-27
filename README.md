@@ -5,6 +5,7 @@ based on this https://aws.amazon.com/blogs/security/how-to-implement-federated-a
 ## Requirements 
 
 Python 3
+
 The file ~/.aws/credentials must exist and contain a default. For example:
 
 	[default]
