@@ -25,6 +25,7 @@ PARSER.add_argument('-u', '--username', dest='username', help='Your email')
 PARSER.add_argument('-p', '--password', dest='password', help='Your password')
 PARSER.add_argument('-r', '--region', dest='region', help='the region string e.g us-west-2')
 PARSER.add_argument('-e', '--export', dest='export', const=True, nargs="?", help='Boolean flag, will print export statements to stdout')
+PARSER.add_argument('-d', '--export-docker', dest='export_docker', const=True, nargs="?", help='Boolean flag, will print export statements to stdout for docker')
 PARSER.add_argument('-a', '--account', dest='account', help='Human readable name that for the role you want to assume. It may help to run this script and see what options are available before using the flag')
 PARSER.add_argument('-t', '--profile', dest='profilename', help='Name of the profile you would like to store the credentails in. Default is the Human readable name of the account in the federated services')
 # region: The default AWS region that this script will connect 
@@ -189,7 +190,7 @@ else:
 conn = boto.sts.connect_to_region(region)
 token = conn.assume_role_with_saml(role_arn, principal_arn, assertion)
 
-if not ARGS.export:
+if not (ARGS.export or ARGS.export_docker):
     # Write the AWS STS token into the AWS credential file
     home = expanduser("~")
     filename = home + awsconfigfile
@@ -220,5 +221,7 @@ if not ARGS.export:
     print( 'After this time you may safely rerun this script to refresh your access key pair.')
     print( 'To use this credential call the AWS CLI with the --profile option (e.g. aws --profile {0} ec2 describe-instances).'.format(configname))
     print( '----------------------------------------------------------------\n\n')
+elif ARGS.export_docker:
+    print( 'docker run -e AWS_ACCESS_KEY_ID="{0}" -e AWS_SECRET_ACCESS_KEY="{1}" -e AWS_SESSION_TOKEN="{2}"'.format(token.credentials.access_key, token.credentials.secret_key, token.credentials.session_token))
 else:
     print( 'export AWS_ACCESS_KEY_ID="{0}"\nexport AWS_SECRET_ACCESS_KEY="{1}"\nexport AWS_SESSION_TOKEN="{2}"'.format(token.credentials.access_key, token.credentials.secret_key, token.credentials.session_token))
