@@ -36,3 +36,7 @@ Alternately define stuff from the cli:
 ## Errata
 Bash Completion:
 Using the CLI can be frustrating, complete yourself http://docs.aws.amazon.com/cli/latest/userguide/cli-command-completion.html
+
+## Developer info
+
+Please contact Jesse Osiecki <jesse.osiecki@solarwinds.com> if you need help
