@@ -10,13 +10,33 @@ import configparser
 import base64
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
-from os.path import expanduser
+from os.path import expanduser, isfile
 from requests_ntlm import HttpNtlmAuth
 
 
 REGIONS = ["us-east-2", "us-east-1", "us-west-1", "us-west-2", "ca-central-1", "ap-south-1",
            "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1",
            "eu-central-1", "eu-west-1", "eu-west-2", "sa-east-1"]
+##########################################################################
+def write_config_file(filename, configname, outputformat, region, access_id, access_key, token):
+    # Read in the existing config file
+    config = configparser.RawConfigParser()
+    config.read(filename)
+     
+    # Put the credentials into a specific profile instead of clobbering
+    # the default credentials
+    if not config.has_section(configname):
+        config.add_section(configname)
+     
+    config.set(configname, 'output', outputformat)
+    config.set(configname, 'region', region)
+    config.set(configname, 'aws_access_key_id', access_id)
+    config.set(configname, 'aws_secret_access_key', access_key)
+    config.set(configname, 'aws_session_token', token)
+     
+    # Write the updated config file
+    with open(filename, 'w+') as configfile:
+        config.write(configfile)
 ##########################################################################
 # Variables 
  
@@ -39,6 +59,17 @@ outputformat = 'json'
 # awsconfigfile: The file where this script will store the temp
 # credentials under the saml profile
 awsconfigfile = '/.aws/credentials'
+home = expanduser("~")
+filename = home + awsconfigfile
+# Fix bug (boto.exception.NoAuthHandlerFound: No handler was ready to authenticate.)
+if not isfile(filename):
+    write_config_file(filename, 'default', 'json', 'us-east-1', 'testid', 'testkey', 'testtoken')
+else:
+    config = configparser.RawConfigParser()
+    config.read(filename)
+    if not config.has_section('default'):
+        write_config_file(filename, 'default', 'json', 'us-east-1', 'testid', 'testkey', 'testtoken')
+
 
 # SSL certificate verification: Whether or not strict certificate
 # verification is done, False should only be used for dev/test
@@ -69,7 +100,7 @@ if not ARGS.region:
         print("[" , i , "] ", region)
     print("Region: ", end='')
     region = REGIONS[int(input())]
-    print(region)
+    print("Selected:", region)
 else:
     region = ARGS.region
 
@@ -105,6 +136,7 @@ for inputtag in soup.find_all(re.compile('(INPUT|input)')):
 #make post request
 response = session.post(
     idpentryurl, data=payload, verify=sslverification)
+
 					 
 # Overwrite and delete the credential variables, just for safety
 username = '##############################################'
@@ -115,10 +147,21 @@ del password
 # Look for the SAMLResponse attribute of the input tag (determined by 
 # analyzing the debug print lines above) 
 assertion = '' 
-soup = BeautifulSoup(response.text, "html.parser") 
+soup = BeautifulSoup(response.text, "html.parser")
+
+#Error Checking
+try:
+    if soup.label.attrs.get('id') == 'errorText':
+        for c in soup.label.contents:
+            print(c)
+except:
+    pass # we don't care if this isn't here
+#get SAML Response
 for inputtag in soup.find_all('input'): 
     if(inputtag.get('name') == 'SAMLResponse'): 
         assertion = inputtag.get('value')
+if assertion == '':
+    print("No SAMLResponse Found")
 
 # Parse the returned assertion and extract the authorized roles 
 awsroles = [] 
@@ -192,27 +235,7 @@ token = conn.assume_role_with_saml(role_arn, principal_arn, assertion)
 
 if not (ARGS.export or ARGS.export_docker):
     # Write the AWS STS token into the AWS credential file
-    home = expanduser("~")
-    filename = home + awsconfigfile
-     
-    # Read in the existing config file
-    config = configparser.RawConfigParser()
-    config.read(filename)
-     
-    # Put the credentials into a specific profile instead of clobbering
-    # the default credentials
-    if not config.has_section(configname):
-        config.add_section(configname)
-     
-    config.set(configname, 'output', outputformat)
-    config.set(configname, 'region', region)
-    config.set(configname, 'aws_access_key_id', token.credentials.access_key)
-    config.set(configname, 'aws_secret_access_key', token.credentials.secret_key)
-    config.set(configname, 'aws_session_token', token.credentials.session_token)
-     
-    # Write the updated config file
-    with open(filename, 'w+') as configfile:
-        config.write(configfile)
+    write_config_file(filename, configname, outputformat, region, token.credentials.access_key, token.credentials.secret_key, token.credentials.session_token)
 
     # Give the user some basic info as to what has just happened
     print('\n\n----------------------------------------------------------------')

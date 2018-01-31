@@ -7,10 +7,12 @@ based on this https://aws.amazon.com/blogs/security/how-to-implement-federated-a
 Python 3
 
 The file ~/.aws/credentials must exist and contain a default. For example:
-
-	[default]
-	aws_access_key_id = some_stuff
-	aws_secret_access_key = some more stuff
+```
+[default]
+aws_access_key_id = some_stuff
+aws_secret_access_key = some more stuff
+```
+The script should automatically add the file if it does not exist to fix a bug that occurs if it is absent(boto.exception.NoAuthHandlerFound: No handler was ready to authenticate.)
 
 ## Installation
     pip install -r requirements.txt
@@ -40,3 +42,6 @@ Using the CLI can be frustrating, complete yourself http://docs.aws.amazon.com/c
 ## Developer info
 
 Please contact Jesse Osiecki <jesse.osiecki@solarwinds.com> if you need help
+
+## Changelog
++ 2018-1-31 - Added fix for boto.exception.NoAuthHandlerFound errors and other misc error checking
