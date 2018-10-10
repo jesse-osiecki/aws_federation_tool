@@ -76,7 +76,7 @@ else:
 sslverification = True
 
 # idpentryurl: The initial URL that starts the authentication process.
-idpentryurl = 'https://fs.swmsp.net/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices'
+idpentryurl = 'https://mydomain.net/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices'
 
 ARGS = PARSER.parse_args()
 
