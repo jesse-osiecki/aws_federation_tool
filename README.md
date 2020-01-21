@@ -44,4 +44,5 @@ Using the CLI can be frustrating, complete yourself http://docs.aws.amazon.com/c
 Please contact Jesse Osiecki <jesse.osiecki@solarwinds.com> if you need help
 
 ## Changelog
++ 2020-1-21 - Added domain to command line argument options
 + 2018-1-31 - Added fix for boto.exception.NoAuthHandlerFound errors and other misc error checking

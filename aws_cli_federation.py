@@ -41,6 +41,7 @@ def write_config_file(filename, configname, outputformat, region, access_id, acc
 # Variables 
  
 PARSER = argparse.ArgumentParser()
+PARSER.add_argument('-n', '--domain', dest='domain', help='Federated login domain')
 PARSER.add_argument('-u', '--username', dest='username', help='Your email')
 PARSER.add_argument('-p', '--password', dest='password', help='Your password')
 PARSER.add_argument('-r', '--region', dest='region', help='the region string e.g us-west-2')
@@ -75,14 +76,16 @@ else:
 # verification is done, False should only be used for dev/test
 sslverification = True
 
-# idpentryurl: The initial URL that starts the authentication process.
-idpentryurl = 'https://mydomain.net/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices'
-
 ARGS = PARSER.parse_args()
 
 ##########################################################################
 
 # Get the federated credentials from the user
+domain = ARGS.domain if ARGS.domain else 'mydomain.net' 
+
+# idpentryurl: The initial URL that starts the authentication process.
+idpentryurl = 'https://' + domain + '/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices'
+
 if not ARGS.username:
     print("Username: ", end='')
     username = input()
